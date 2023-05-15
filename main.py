@@ -52,15 +52,47 @@ def filterSpecificPairs(data, *args):
         s[args[i]] = data[args[i]]
     return s
 
+def messageOnchange(data):
+    """
+    sends message when data changes using difference of a set
+    """
+    ...
+
+def catchChange(data, func):
+    """
+    catches change of data
+    """
+    if data == {}:
+        return set()
+    else:
+        s = {}
+        for i in data:
+            print("_DATA_")
+            print({data[i]['short']}-{func})
+         
+        return s
+
+def updateLinkDivideFilter(url, filename, *args):
+    data = updateData(url, filename)
+    linkedData = linkPairsAndOpenInterests(getPairs(data), getOpenInterests(data))
+    dividedData = divideData(linkedData)
+    specificPairs = filterSpecificPairs(dividedData, *args)
+    return specificPairs
+    
 if __name__ == '__main__':
     URL = 'https://backend-arbitrum.gains.trade/trading-variables'
     FILENAME = 'data.json'
+    specificPairs = {}
 
+    specificPairs = updateLinkDivideFilter(URL, FILENAME, "ETHUSD", "NVDAUSD", "BTCUSD")
     while True:
-        data = updateData(URL, FILENAME)
-        linkedData = linkPairsAndOpenInterests(getPairs(data), getOpenInterests(data))
-        dividedData = divideData(linkedData)
-        specificPairs = filterSpecificPairs(dividedData, "ETHUSD", "NVDAUSD", "BTCUSD")
+        previousData = specificPairs
+        specificPairs = updateLinkDivideFilter(URL, FILENAME, "ETHUSD", "NVDAUSD", "BTCUSD")
+        if previousData and specificPairs != {}:
+            for i in specificPairs:
+                if previousData[i]['short'] != specificPairs[i]['short']:
+                    print(f"{specificPairs[i]} short changed from:", previousData[i]['short'], "to", specificPairs[i]['short'])
+                else:
+                    print(f"{specificPairs} short not changed")
 
-        print(specificPairs)
         time.sleep(60)
