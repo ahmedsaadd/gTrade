@@ -1,12 +1,15 @@
 import requests
 import time
 import json
+from slack import send_message,get_time
 from datetime import datetime
+
 URL = 'https://backend-arbitrum.gains.trade/trading-variables'
 FILE_NAME = 'interests.json'
 
 desired_pairs = ['BTCUSD', 'ETHUSD', 'NVDAUSD']
 previous_interests = {}
+send_message(f"Hello, it's {get_time()} now. We're going to look for {desired_pairs}", "gtradebot")
 
 while True:
     try:
@@ -24,6 +27,8 @@ while True:
             if pair in previous_interests:
                 if previous_interests[pair] != interest:
                     print(f'[{datetime.now()}] Interest for {pair} has changed. New interest: {interest}')
+                    send_message(f'[{datetime.now()}] Interest for {pair} has changed. New interest: {interest}', "gtradebot")
+
                 else:
                     print(f'[{datetime.now()}] Interest for {pair} has not changed. Current interest: {interest}')
                 
@@ -37,3 +42,4 @@ while True:
     except Exception as e:
         print(f'An error occurred: {e}')
         break
+
