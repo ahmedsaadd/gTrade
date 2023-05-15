@@ -1,81 +1,39 @@
 import requests
-import json
 import time
+import json
+from datetime import datetime
+URL = 'https://backend-arbitrum.gains.trade/trading-variables'
+FILE_NAME = 'interests.json'
 
-def updateData(url, filename):
-    r = requests.get(url)
-    json.dump(r.json(), open(filename, 'w'), indent=4)
-    fileData = json.load(open(filename))
-    return fileData
+desired_pairs = ['BTCUSD', 'ETHUSD', 'NVDAUSD']
+previous_interests = {}
 
-def getPairs(data):
-    """
-    gets pairs.from and pairs.to combining them, and returns a list of pairs
-    """
-    pairs = []
-    for i in range(len(data['pairs'])):
-        pairString = str(data['pairs'][i]['from'] + data['pairs'][i]['to'])
-        pairs.append(pairString)
-    return pairs
+while True:
+    try:
+        t = time.time()
+        response = requests.get(URL)
+        data = response.json()
 
-def getOpenInterests(data):
-    """
-    gets openInterests and returns a list of openInterests
-    """
-    openInterests = []
-    for i in range(len(data['openInterests'])):
-        openInterests.append(data['openInterests'][i])
-    return openInterests
+        current_interests = {}
+        for pair, interest in zip(data['pairs'], data['openInterests']):
+            pair_name = pair['from'] + pair['to']
+            if pair_name in desired_pairs:
+                current_interests[pair_name] = interest['short']
 
-def linkPairsAndOpenInterests(pairs, openInterests):
-    """
-    linking data pairs and openInterests, returns a dictionary with key: pair and value: openInterest
-    example: {'BTCUSD': {'long':'10', 'short':'11', 'max':'12'}, 'ETHUSD': {'long':'10', 'short':'11', 'max':'12'}, ...}}
-    """
-    d = {}
-    for i in range(len(pairs)):
-        d[pairs[i]] = openInterests[i]
-    return d
+        for pair, interest in current_interests.items():
+            if pair in previous_interests:
+                if previous_interests[pair] != interest:
+                    print(f'[{datetime.now()}] Interest for {pair} has changed. New interest: {interest}')
+                else:
+                    print(f'[{datetime.now()}] Interest for {pair} has not changed. Current interest: {interest}')
+                
+        previous_interests = current_interests
 
-def divideData(data):
-    """
-    divides (long, short, max) by 10**18, returns a dictionary with key: pair and value: {long, short, max} divided by 10**18
-    """
-    for i in data:
-        for j in data[i]:
-            data[i][j] = int(data[i][j])/(10**18)
-    return data
+        with open(FILE_NAME, 'w') as file:
+            json.dump(current_interests, file)
 
-def filterSpecificPairs(data, *args):
-    s = {}
-    for i in range(len(args)):
-        s[args[i]] = data[args[i]]
-    return s
-
-def updateLinkDivideFilter(url, filename, *args):
-    data = updateData(url, filename)
-    linkedData = linkPairsAndOpenInterests(getPairs(data), getOpenInterests(data))
-    dividedData = divideData(linkedData)
-    specificPairs = filterSpecificPairs(dividedData, *args)
-    return specificPairs
-
-def catchChange(previousData, specificPairs):
-    for i in specificPairs:
-        if previousData[i]['short'] != specificPairs[i]['short']:
-            return f"{specificPairs[i]} short changed from:", previousData[i]['short'], "to", specificPairs[i]['short']
-        else:
-            return f"{specificPairs} short not changed"
-    
-    
-if __name__ == '__main__':
-    URL = 'https://backend-arbitrum.gains.trade/trading-variables'
-    FILENAME = 'data.json'
-
-    specificPairs = {}
-    specificPairs = updateLinkDivideFilter(URL, FILENAME, "ETHUSD", "NVDAUSD", "BTCUSD")
-    while True:
-        previousData = specificPairs
-        specificPairs = updateLinkDivideFilter(URL, FILENAME, "ETHUSD", "NVDAUSD", "BTCUSD")
-        print(catchChange(previousData, specificPairs))
-
+        print(time.time() - t)
         time.sleep(60)
+    except Exception as e:
+        print(f'An error occurred: {e}')
+        break
